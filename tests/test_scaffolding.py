@@ -1,4 +1,3 @@
-# tests/test_scaffolding.py
 import haro
 
 

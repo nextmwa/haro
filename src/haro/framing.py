@@ -1,6 +1,3 @@
-# src/haro/framing.py
-
-
 class FrameBuffer:
     def __init__(self, frame_size_bytes: int) -> None:
         if frame_size_bytes <= 0:

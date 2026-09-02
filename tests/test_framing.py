@@ -1,4 +1,3 @@
-# tests/test_framing.py
 import pytest
 
 from haro.framing import FrameBuffer
