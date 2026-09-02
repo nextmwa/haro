@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Personal AI desk robot"
 requires-python = ">=3.11"
 dependencies = [
+    "numpy>=1.24.0",
     "sounddevice>=0.4.6",
     "websockets>=12.0",
     "openwakeword>=0.6.0",
@@ -21,6 +22,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    # webrtcvad (third-party) imports pkg_resources at import time.
+    "ignore:pkg_resources is deprecated:UserWarning",
+]
 
 [build-system]
 requires = ["setuptools>=68.0"]
