@@ -48,11 +48,12 @@ class NetworkManagerClient:
         """
         output = self._runner(["-t", "-f", "NAME,TYPE", "connection", "show", "--active"])
         for line in output.splitlines():
-            parts = line.split(":")
-            if len(parts) < 2:
+            # Split from the right: an SSID may contain a colon (escaped by
+            # nmcli as "\:"), but the trailing TYPE field never does.
+            name, separator, conn_type = line.rpartition(":")
+            if not separator or conn_type != WIFI_CONNECTION_TYPE:
                 continue
-            name, conn_type = parts[0], parts[1]
-            if conn_type == WIFI_CONNECTION_TYPE and name != DEFAULT_HOTSPOT_CON_NAME:
+            if name.replace("\\:", ":") != DEFAULT_HOTSPOT_CON_NAME:
                 return True
         return False
 

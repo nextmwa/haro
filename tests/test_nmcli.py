@@ -58,6 +58,15 @@ def test_is_connected_true_when_hotspot_and_a_real_wifi_are_both_active():
     assert client.is_connected() is True
 
 
+def test_is_connected_true_for_an_ssid_containing_an_escaped_colon():
+    # nmcli -t escapes colons inside field values, so the name cannot be read
+    # by splitting on the first colon.
+    runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: "Cafe\\: Wifi:802-11-wireless\n"})
+    client = NetworkManagerClient("wlan0", runner=runner)
+
+    assert client.is_connected() is True
+
+
 def test_is_connected_ignores_malformed_lines():
     runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: "garbage\n\nMyHomeWifi:802-11-wireless\n"})
     client = NetworkManagerClient("wlan0", runner=runner)
