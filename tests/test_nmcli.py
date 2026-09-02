@@ -18,22 +18,48 @@ class ScriptedRunner:
         return self._outputs.get(key, "")
 
 
-def test_is_connected_true_when_state_is_connected():
-    runner = ScriptedRunner(outputs={("-t", "-g", "STATE", "general", "status"): "connected\n"})
+ACTIVE_CONNECTIONS_KEY = ("-t", "-f", "NAME,TYPE", "connection", "show", "--active")
+
+
+def test_is_connected_true_when_a_real_wifi_connection_is_active():
+    runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: "MyHomeWifi:802-11-wireless\n"})
     client = NetworkManagerClient("wlan0", runner=runner)
 
     assert client.is_connected() is True
 
 
-def test_is_connected_false_when_state_is_not_connected():
-    runner = ScriptedRunner(outputs={("-t", "-g", "STATE", "general", "status"): "disconnected\n"})
+def test_is_connected_false_when_only_the_hotspot_is_active():
+    runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: "haro-setup:802-11-wireless\n"})
     client = NetworkManagerClient("wlan0", runner=runner)
 
     assert client.is_connected() is False
 
 
-def test_is_connected_true_when_state_is_connected_with_variant():
-    runner = ScriptedRunner(outputs={("-t", "-g", "STATE", "general", "status"): "connected (site)\n"})
+def test_is_connected_false_when_nothing_is_active():
+    runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: ""})
+    client = NetworkManagerClient("wlan0", runner=runner)
+
+    assert client.is_connected() is False
+
+
+def test_is_connected_false_when_only_a_non_wifi_connection_is_active():
+    runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: "Wired connection 1:802-3-ethernet\n"})
+    client = NetworkManagerClient("wlan0", runner=runner)
+
+    assert client.is_connected() is False
+
+
+def test_is_connected_true_when_hotspot_and_a_real_wifi_are_both_active():
+    runner = ScriptedRunner(
+        outputs={ACTIVE_CONNECTIONS_KEY: "haro-setup:802-11-wireless\nMyHomeWifi:802-11-wireless\n"}
+    )
+    client = NetworkManagerClient("wlan0", runner=runner)
+
+    assert client.is_connected() is True
+
+
+def test_is_connected_ignores_malformed_lines():
+    runner = ScriptedRunner(outputs={ACTIVE_CONNECTIONS_KEY: "garbage\n\nMyHomeWifi:802-11-wireless\n"})
     client = NetworkManagerClient("wlan0", runner=runner)
 
     assert client.is_connected() is True
@@ -82,13 +108,13 @@ def test_start_hotspot_calls_nmcli_with_expected_args():
     ]
 
 
-def test_stop_hotspot_calls_nmcli_connection_down():
+def test_stop_hotspot_calls_nmcli_connection_delete():
     runner = ScriptedRunner()
     client = NetworkManagerClient("wlan0", runner=runner)
 
     client.stop_hotspot()
 
-    assert runner.calls == [["connection", "down", "haro-setup"]]
+    assert runner.calls == [["connection", "delete", "haro-setup"]]
 
 
 def test_default_runner_raises_nmcli_error_on_nonzero_exit():
@@ -100,3 +126,20 @@ def test_default_runner_raises_nmcli_error_on_nonzero_exit():
     mock_run.assert_called_once_with(
         ["nmcli", "device", "wifi", "list"], capture_output=True, text=True, check=False,
     )
+
+
+def test_default_runner_fallback_message_redacts_the_password():
+    # Empty stderr forces the fallback message, which is built from the args.
+    fake_result = MagicMock(returncode=1, stdout="", stderr="")
+    args = ["device", "wifi", "connect", "HomeWifi", "password", "sup3rs3cret"]
+
+    with patch("haro.nmcli.subprocess.run", return_value=fake_result):
+        with pytest.raises(NmcliError) as excinfo:
+            _default_runner(args)
+
+    message = str(excinfo.value)
+    assert "sup3rs3cret" not in message
+    assert "password ***" in message
+    assert "HomeWifi" in message
+    # The caller's list must not be mutated by the redaction.
+    assert args[-1] == "sup3rs3cret"

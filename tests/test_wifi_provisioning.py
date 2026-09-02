@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
 from haro.face_display import Expression
@@ -137,6 +138,93 @@ async def test_ensure_connected_recovers_from_wrong_password_then_succeeds():
     assert nm_client.connect_calls == [("HomeWifi", "wrong"), ("HomeWifi", "secret")]
     assert nm_client.stop_hotspot_calls == 1
     assert face_display.shown == [Expression.SETUP, Expression.IDLE]
+
+
+class ExplodingStopHotspotNmClient(FakeNmClient):
+    """Like FakeNmClient, but tearing the hotspot down also fails — simulating
+    nmcli erroring out while we are already unwinding from another failure."""
+
+    def stop_hotspot(self) -> None:
+        super().stop_hotspot()
+        raise RuntimeError("nmcli connection delete failed")
+
+
+class RaisingServerRunner:
+    """Simulates the setup server itself blowing up mid-flight."""
+
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
+    async def serve_until(self, app, port, stop_event):
+        raise self._error
+
+
+async def test_ensure_connected_propagates_original_error_even_if_hotspot_teardown_also_fails():
+    original_error = RuntimeError("setup server exploded")
+    nm_client = ExplodingStopHotspotNmClient(connected_sequence=[False])
+    face_display = FakeFaceDisplay()
+    provisioning = WifiProvisioning(
+        nm_client, face_display, "Haro-Setup", "haro1234",
+        server_runner=RaisingServerRunner(original_error),
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        await provisioning.ensure_connected()
+
+    # The original failure must survive; the teardown failure must not replace it.
+    assert excinfo.value is original_error
+    # Teardown is still attempted even though serve_until raised.
+    assert nm_client.stop_hotspot_calls == 1
+    # The hotspot was started inside the try, so it is covered by the finally.
+    assert nm_client.start_hotspot_calls == [("Haro-Setup", "haro1234")]
+    # Setup mode was entered but never completed, so no IDLE reset.
+    assert face_display.shown == [Expression.SETUP]
+
+
+class ExplodingIsConnectedNmClient(FakeNmClient):
+    """is_connected() raises instead of returning False — simulating a transient
+    nmcli/D-Bus failure during a health probe."""
+
+    def __init__(self) -> None:
+        super().__init__(connected_sequence=[False])
+        self.is_connected_calls = 0
+
+    def is_connected(self) -> bool:
+        self.is_connected_calls += 1
+        raise RuntimeError("nmcli unavailable")
+
+
+async def test_monitor_treats_is_connected_exception_as_unhealthy_and_still_reaches_threshold():
+    nm_client = ExplodingIsConnectedNmClient()
+    face_display = FakeFaceDisplay()
+    provisioning = WifiProvisioning(
+        nm_client, face_display, "Haro-Setup", "haro1234",
+        server_runner=FakeServerRunner(),
+        check_interval_s=0.01, unhealthy_threshold=3,
+    )
+    triggered = asyncio.Event()
+    ensure_connected_calls = 0
+
+    async def fake_ensure_connected() -> None:
+        nonlocal ensure_connected_calls
+        ensure_connected_calls += 1
+        triggered.set()
+
+    provisioning.ensure_connected = fake_ensure_connected
+
+    monitor_task = asyncio.create_task(provisioning.monitor())
+    await asyncio.wait_for(triggered.wait(), timeout=1.0)
+    # The loop survived every raise rather than dying on the first one.
+    still_running = not monitor_task.done()
+    monitor_task.cancel()
+    try:
+        await monitor_task
+    except asyncio.CancelledError:
+        pass
+
+    assert still_running
+    assert ensure_connected_calls == 1
+    assert nm_client.is_connected_calls >= 3
 
 
 async def test_monitor_calls_ensure_connected_after_threshold_failures():

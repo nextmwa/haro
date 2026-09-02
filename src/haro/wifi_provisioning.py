@@ -70,9 +70,6 @@ class WifiProvisioning:
         logger.info("no known WiFi connection, entering setup mode")
         self._face_display.show(Expression.SETUP)
         networks = await asyncio.to_thread(self._nm_client.scan_networks)
-        await asyncio.to_thread(
-            self._nm_client.start_hotspot, self._hotspot_ssid, self._hotspot_password
-        )
 
         stop_event = asyncio.Event()
 
@@ -89,9 +86,16 @@ class WifiProvisioning:
 
         app = create_setup_app(networks, on_submit)
         try:
+            await asyncio.to_thread(
+                self._nm_client.start_hotspot, self._hotspot_ssid, self._hotspot_password
+            )
             await self._server_runner.serve_until(app, self._setup_server_port, stop_event)
         finally:
-            await asyncio.to_thread(self._nm_client.stop_hotspot)
+            # Guarded so a teardown failure cannot mask the original exception.
+            try:
+                await asyncio.to_thread(self._nm_client.stop_hotspot)
+            except Exception:
+                logger.exception("error stopping hotspot")
 
         logger.info("WiFi setup complete, resuming normal operation")
         self._face_display.show(Expression.IDLE)
@@ -100,7 +104,14 @@ class WifiProvisioning:
         consecutive_failures = 0
         while True:
             await asyncio.sleep(self._check_interval_s)
-            if await asyncio.to_thread(self._nm_client.is_connected):
+            try:
+                healthy = await asyncio.to_thread(self._nm_client.is_connected)
+            except Exception as exc:
+                # A transient nmcli/D-Bus hiccup must not kill the process; treat
+                # it as "not connected" and let the failure counting handle it.
+                logger.warning("WiFi health probe failed: %s", exc)
+                healthy = False
+            if healthy:
                 consecutive_failures = 0
                 continue
             consecutive_failures += 1

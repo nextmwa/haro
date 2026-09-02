@@ -21,9 +21,15 @@ from .wifi_provisioning import WifiProvisioning
 logger = logging.getLogger(__name__)
 
 
+def build_face_display(config: Config) -> FaceDisplay:
+    serial = i2c(port=1, address=config.i2c_display_address)
+    device = ssd1306(serial)
+    return FaceDisplay(device)
+
+
 def build_orchestrator(
-    config: Config,
-) -> tuple[Orchestrator, AudioInput, AudioOutput, FaceDisplay, ServerClient]:
+    config: Config, face_display: FaceDisplay,
+) -> tuple[Orchestrator, AudioInput, AudioOutput, ServerClient]:
     audio_input = AudioInput(
         frame_size_bytes=config.wake_word_frame_size_bytes,
         device=config.mic_device,
@@ -45,10 +51,6 @@ def build_orchestrator(
     server_client = ServerClient(url=config.server_url)
     audio_output = AudioOutput(device=config.speaker_device, sample_rate=config.speaker_sample_rate)
 
-    serial = i2c(port=1, address=config.i2c_display_address)
-    device = ssd1306(serial)
-    face_display = FaceDisplay(device)
-
     orchestrator = Orchestrator(
         audio_input=audio_input,
         wake_word=wake_word,
@@ -58,7 +60,7 @@ def build_orchestrator(
         face_display=face_display,
         response_timeout_s=config.response_timeout_s,
     )
-    return orchestrator, audio_input, audio_output, face_display, server_client
+    return orchestrator, audio_input, audio_output, server_client
 
 
 def build_wifi_provisioning(config: Config, face_display: FaceDisplay) -> WifiProvisioning:
@@ -77,10 +79,14 @@ def build_wifi_provisioning(config: Config, face_display: FaceDisplay) -> WifiPr
 async def run(config_path: str | None) -> None:
     config = Config.from_file(config_path) if config_path else Config.default()
     logger.info("loaded config from %s", config_path or "defaults")
-    orchestrator, audio_input, audio_output, face_display, server_client = build_orchestrator(config)
+    face_display = build_face_display(config)
 
+    # WiFi must be up before build_orchestrator(), which downloads the wake word
+    # model over the network on first run.
     wifi_provisioning = build_wifi_provisioning(config, face_display)
     await wifi_provisioning.ensure_connected()
+
+    orchestrator, audio_input, audio_output, server_client = build_orchestrator(config, face_display)
 
     try:
         audio_input.start()
@@ -89,9 +95,12 @@ async def run(config_path: str | None) -> None:
         face_display.show(Expression.ERROR)
         raise
     try:
-        await asyncio.gather(orchestrator.run(), wifi_provisioning.monitor())
-    except Exception:
-        logger.exception("orchestrator crashed")
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(orchestrator.run())
+            tg.create_task(wifi_provisioning.monitor())
+    except* Exception as eg:
+        for exc in eg.exceptions:
+            logger.exception("run() failed", exc_info=exc)
         face_display.show(Expression.ERROR)
         raise
     finally:
