@@ -11,14 +11,16 @@ class AudioInput:
         self._buffer = FrameBuffer(frame_size_bytes)
         self._queue: asyncio.Queue[bytes] = asyncio.Queue()
         self._stream = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def _callback(self, indata, frames, time_info, status) -> None:
         for frame in self._buffer.push(bytes(indata)):
-            self._queue.put_nowait(frame)
+            self._loop.call_soon_threadsafe(self._queue.put_nowait, frame)
 
     def start(self) -> None:
         import sounddevice as sd
 
+        self._loop = asyncio.get_running_loop()
         self._stream = sd.RawInputStream(
             samplerate=self._sample_rate,
             channels=1,
