@@ -43,3 +43,8 @@ def test_parse_unknown_type_raises_protocol_error():
 def test_parse_emotion_missing_value_raises_protocol_error():
     with pytest.raises(protocol.ProtocolError):
         protocol.parse_server_message('{"type": "emotion"}')
+
+
+def test_parse_non_object_json_raises_protocol_error():
+    with pytest.raises(protocol.ProtocolError):
+        protocol.parse_server_message("42")

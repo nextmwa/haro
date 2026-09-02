@@ -44,6 +44,9 @@ def parse_server_message(text: str) -> ServerEvent:
     except json.JSONDecodeError as exc:
         raise ProtocolError(f"invalid JSON: {text!r}") from exc
 
+    if not isinstance(data, dict):
+        raise ProtocolError(f"expected a JSON object, got: {text!r}")
+
     msg_type = data.get("type")
     if msg_type == "emotion":
         value = data.get("value")
