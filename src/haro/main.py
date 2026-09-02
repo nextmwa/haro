@@ -11,10 +11,12 @@ from .audio_input import AudioInput
 from .audio_output import AudioOutput
 from .config import Config
 from .face_display import Expression, FaceDisplay
+from .nmcli import NetworkManagerClient
 from .orchestrator import Orchestrator
 from .server_client import ServerClient
 from .vad import SilenceDetector
 from .wake_word import WakeWordDetector
+from .wifi_provisioning import WifiProvisioning
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +61,27 @@ def build_orchestrator(
     return orchestrator, audio_input, audio_output, face_display, server_client
 
 
+def build_wifi_provisioning(config: Config, face_display: FaceDisplay) -> WifiProvisioning:
+    nm_client = NetworkManagerClient(interface=config.wifi_interface)
+    return WifiProvisioning(
+        nm_client=nm_client,
+        face_display=face_display,
+        hotspot_ssid=config.hotspot_ssid,
+        hotspot_password=config.hotspot_password,
+        setup_server_port=config.setup_server_port,
+        check_interval_s=config.wifi_check_interval_s,
+        unhealthy_threshold=config.wifi_unhealthy_threshold,
+    )
+
+
 async def run(config_path: str | None) -> None:
     config = Config.from_file(config_path) if config_path else Config.default()
     logger.info("loaded config from %s", config_path or "defaults")
     orchestrator, audio_input, audio_output, face_display, server_client = build_orchestrator(config)
+
+    wifi_provisioning = build_wifi_provisioning(config, face_display)
+    await wifi_provisioning.ensure_connected()
+
     try:
         audio_input.start()
     except Exception:
@@ -70,7 +89,7 @@ async def run(config_path: str | None) -> None:
         face_display.show(Expression.ERROR)
         raise
     try:
-        await orchestrator.run()
+        await asyncio.gather(orchestrator.run(), wifi_provisioning.monitor())
     except Exception:
         logger.exception("orchestrator crashed")
         face_display.show(Expression.ERROR)
