@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from haro.config import Config
 
 
@@ -25,3 +27,27 @@ def test_from_file_overrides_only_given_keys(tmp_path):
     assert config.server_url == "wss://example.com/ws"
     assert config.wake_word_threshold == 0.7
     assert config.wake_word_model == "hey_jarvis"  # untouched default
+
+
+def test_from_file_unknown_key_raises_value_error_naming_the_key(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"server_url": "ws://x", "wake_word_treshold": 0.7}))
+
+    with pytest.raises(ValueError, match="wake_word_treshold"):
+        Config.from_file(path)
+
+
+def test_from_file_malformed_json_raises_json_decode_error(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text("{not json")
+
+    with pytest.raises(json.JSONDecodeError):
+        Config.from_file(path)
+
+
+def test_from_file_non_object_json_raises_value_error(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text("[1, 2, 3]")
+
+    with pytest.raises(ValueError, match="JSON object"):
+        Config.from_file(path)

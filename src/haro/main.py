@@ -1,10 +1,11 @@
-# src/haro/main.py
 import asyncio
+import logging
 import sys
 
 import openwakeword
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
+from openwakeword import utils as openwakeword_utils
 
 from .audio_input import AudioInput
 from .audio_output import AudioOutput
@@ -15,13 +16,19 @@ from .server_client import ServerClient
 from .vad import SilenceDetector
 from .wake_word import WakeWordDetector
 
+logger = logging.getLogger(__name__)
 
-def build_orchestrator(config: Config) -> tuple[Orchestrator, AudioInput, AudioOutput, FaceDisplay]:
+
+def build_orchestrator(
+    config: Config,
+) -> tuple[Orchestrator, AudioInput, AudioOutput, FaceDisplay, ServerClient]:
     audio_input = AudioInput(
         frame_size_bytes=config.wake_word_frame_size_bytes,
         device=config.mic_device,
         sample_rate=config.mic_sample_rate,
     )
+    logger.info("verifying/downloading wake word model %r", config.wake_word_model)
+    openwakeword_utils.download_models([config.wake_word_model])
     model = openwakeword.Model(wakeword_models=[config.wake_word_model])
     wake_word = WakeWordDetector(
         model=model,
@@ -49,25 +56,45 @@ def build_orchestrator(config: Config) -> tuple[Orchestrator, AudioInput, AudioO
         face_display=face_display,
         response_timeout_s=config.response_timeout_s,
     )
-    return orchestrator, audio_input, audio_output, face_display
+    return orchestrator, audio_input, audio_output, face_display, server_client
 
 
 async def run(config_path: str | None) -> None:
     config = Config.from_file(config_path) if config_path else Config.default()
-    orchestrator, audio_input, audio_output, face_display = build_orchestrator(config)
+    logger.info("loaded config from %s", config_path or "defaults")
+    orchestrator, audio_input, audio_output, face_display, server_client = build_orchestrator(config)
     try:
         audio_input.start()
     except Exception:
+        logger.exception("failed to start audio input")
         face_display.show(Expression.ERROR)
         raise
     try:
         await orchestrator.run()
+    except Exception:
+        logger.exception("orchestrator crashed")
+        face_display.show(Expression.ERROR)
+        raise
     finally:
-        audio_input.stop()
-        audio_output.stop()
+        logger.info("shutting down")
+        # Each teardown step is guarded so one failure cannot skip the others or
+        # mask the exception that caused the shutdown.
+        for label, shutdown in (("audio input", audio_input.stop), ("audio output", audio_output.stop)):
+            try:
+                shutdown()
+            except Exception:
+                logger.exception("error stopping %s", label)
+        try:
+            await server_client.close()
+        except Exception:
+            logger.exception("error closing server connection")
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     config_path = sys.argv[1] if len(sys.argv) > 1 else None
     asyncio.run(run(config_path))
 

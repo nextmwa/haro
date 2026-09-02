@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+Environment=PYTHONUNBUFFERED=1
 User=pi
 WorkingDirectory=/home/pi/haro
 ExecStart=/home/pi/haro/.venv/bin/python -m haro.main /home/pi/haro/config.json

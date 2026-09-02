@@ -24,4 +24,12 @@ class Config:
     @staticmethod
     def from_file(path: str | Path) -> "Config":
         overrides = json.loads(Path(path).read_text())
+        if not isinstance(overrides, dict):
+            raise ValueError(f"config file must contain a JSON object, got {type(overrides).__name__}")
+        valid_fields = {f.name for f in dataclasses.fields(Config)}
+        unknown = set(overrides) - valid_fields
+        if unknown:
+            raise ValueError(
+                f"unknown config key(s): {sorted(unknown)}; valid keys: {sorted(valid_fields)}"
+            )
         return dataclasses.replace(Config(), **overrides)
