@@ -137,6 +137,7 @@ async def test_error_event_shows_error_and_returns_to_idle():
         Expression.IDLE,
     ]
     assert orchestrator.state == State.IDLE
+    assert audio_output.stop_calls == 1
 
 
 async def test_response_timeout_shows_error_and_returns_to_idle():
@@ -165,3 +166,4 @@ async def test_response_timeout_shows_error_and_returns_to_idle():
 
     assert face_display.shown[-2:] == [Expression.ERROR, Expression.IDLE]
     assert orchestrator.state == State.IDLE
+    assert audio_output.stop_calls == 1

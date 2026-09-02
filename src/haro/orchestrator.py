@@ -93,8 +93,9 @@ class Orchestrator:
     async def _handle_response(self) -> None:
         events = self._server_client.receive_events()
         try:
-            async with asyncio.timeout(self._response_timeout_s):
+            async with asyncio.timeout(self._response_timeout_s) as cm:
                 async for event in events:
+                    cm.reschedule(asyncio.get_running_loop().time() + self._response_timeout_s)
                     if isinstance(event, protocol.EmotionEvent):
                         self.state = State.SPEAKING
                         self._face_display.show(expression_for_emotion(event.value))
@@ -109,7 +110,9 @@ class Orchestrator:
         except TimeoutError:
             self._face_display.show(Expression.ERROR)
         finally:
-            await events.aclose()
-            self._audio_output.stop()
-            self.state = State.IDLE
-            self._face_display.show(Expression.IDLE)
+            try:
+                await events.aclose()
+            finally:
+                self._audio_output.stop()
+                self.state = State.IDLE
+                self._face_display.show(Expression.IDLE)
