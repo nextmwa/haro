@@ -50,3 +50,20 @@ async def test_connect_without_ssid_returns_400():
         resp = await client.post("/connect", data={"password": "secret"})
 
     assert resp.status == 400
+
+
+async def test_index_escapes_html_special_characters_in_network_names():
+    malicious_ssid = '<script>alert(1)</script>'
+    app = create_setup_app([malicious_ssid, 'Normal"WiFi'], on_submit=None)
+
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/")
+        text = await resp.text()
+
+    assert resp.status == 200
+    # Verify the dangerous characters are escaped, not present as literal tags
+    assert "&lt;script&gt;" in text
+    assert "<script>" not in text
+    assert "&quot;" in text
+    # Verify the normal network name still appears (escaped quote)
+    assert "Normal&quot;WiFi" in text

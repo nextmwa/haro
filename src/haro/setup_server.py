@@ -1,3 +1,4 @@
+import html
 from typing import Awaitable, Callable
 
 from aiohttp import web
@@ -10,10 +11,10 @@ def create_setup_app(networks: list[str], on_submit: ConnectCallback) -> web.App
 
     async def index(request: web.Request) -> web.Response:
         options = "".join(
-            f'<label><input type="radio" name="ssid" value="{ssid}" required> {ssid}</label><br>'
+            f'<label><input type="radio" name="ssid" value="{html.escape(ssid)}" required> {html.escape(ssid)}</label><br>'
             for ssid in networks
         )
-        html = f"""
+        html_content = f"""
         <html><body>
         <h1>Haro setup</h1>
         <form method="post" action="/connect">
@@ -23,7 +24,7 @@ def create_setup_app(networks: list[str], on_submit: ConnectCallback) -> web.App
         </form>
         </body></html>
         """
-        return web.Response(text=html, content_type="text/html")
+        return web.Response(text=html_content, content_type="text/html")
 
     async def connect(request: web.Request) -> web.Response:
         data = await request.post()
