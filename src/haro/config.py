@@ -16,6 +16,12 @@ class Config:
     i2c_display_address: int = 0x3C
     end_of_speech_silence_ms: int = 800
     response_timeout_s: float = 15.0
+    hotspot_ssid: str = "Haro-Setup"
+    hotspot_password: str = "haro1234"
+    setup_server_port: int = 8080
+    wifi_interface: str = "wlan0"
+    wifi_check_interval_s: float = 30.0
+    wifi_unhealthy_threshold: int = 3
 
     @staticmethod
     def default() -> "Config":

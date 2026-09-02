@@ -51,3 +51,13 @@ def test_from_file_non_object_json_raises_value_error(tmp_path):
 
     with pytest.raises(ValueError, match="JSON object"):
         Config.from_file(path)
+
+
+def test_default_config_has_wifi_provisioning_defaults():
+    config = Config.default()
+    assert config.hotspot_ssid == "Haro-Setup"
+    assert config.hotspot_password == "haro1234"
+    assert config.setup_server_port == 8080
+    assert config.wifi_interface == "wlan0"
+    assert config.wifi_check_interval_s == 30.0
+    assert config.wifi_unhealthy_threshold == 3
