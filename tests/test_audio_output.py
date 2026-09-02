@@ -60,3 +60,13 @@ def test_play_chunk_after_stop_restarts_stream():
     output.play_chunk(b"chunk2")
 
     assert stream.calls[-2:] == [("start",), ("write", b"chunk2")]
+
+
+def test_stop_resets_cached_stream_for_real_playback_path():
+    output = AudioOutput(stream=None, device=None, sample_rate=24000)
+    output._stream = FakeStream()  # simulate a previously-created real stream
+    output._started = True
+
+    output.stop()
+
+    assert output._stream is None
