@@ -52,6 +52,27 @@ async def test_connect_without_ssid_returns_400():
     assert resp.status == 400
 
 
+async def test_connect_without_on_submit_returns_503():
+    app = create_setup_app(["HomeWifi"], on_submit=None)
+
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post("/connect", data={"ssid": "HomeWifi", "password": "secret"})
+        text = await resp.text()
+
+    assert resp.status == 503
+    assert text == "Setup is not available."
+
+
+async def test_index_includes_viewport_meta_tag():
+    app = create_setup_app(["HomeWifi"])
+
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/")
+        text = await resp.text()
+
+    assert '<meta name="viewport" content="width=device-width, initial-scale=1">' in text
+
+
 async def test_index_escapes_html_special_characters_in_network_names():
     malicious_ssid = '<script>alert(1)</script>'
     app = create_setup_app([malicious_ssid, 'Normal"WiFi'], on_submit=None)

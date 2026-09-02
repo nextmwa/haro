@@ -6,7 +6,9 @@ from aiohttp import web
 ConnectCallback = Callable[[str, str], Awaitable[bool]]
 
 
-def create_setup_app(networks: list[str], on_submit: ConnectCallback) -> web.Application:
+def create_setup_app(
+    networks: list[str], on_submit: ConnectCallback | None = None
+) -> web.Application:
     app = web.Application()
 
     async def index(request: web.Request) -> web.Response:
@@ -15,7 +17,7 @@ def create_setup_app(networks: list[str], on_submit: ConnectCallback) -> web.App
             for ssid in networks
         )
         html_content = f"""
-        <html><body>
+        <html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
         <h1>Haro setup</h1>
         <form method="post" action="/connect">
         {options}
@@ -32,6 +34,8 @@ def create_setup_app(networks: list[str], on_submit: ConnectCallback) -> web.App
         password = str(data.get("password", ""))
         if not ssid:
             return web.Response(text="Missing network selection", status=400)
+        if on_submit is None:
+            return web.Response(text="Setup is not available.", status=503)
         success = await on_submit(ssid, password)
         if success:
             return web.Response(text="Connected! Haro is resuming normal operation.")
