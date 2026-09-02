@@ -113,3 +113,10 @@ async def test_close_closes_the_connection():
     await client.close()
 
     assert connection.closed is True
+
+
+async def test_send_hello_before_connect_raises_runtime_error():
+    client = ServerClient("ws://example")
+
+    with pytest.raises(RuntimeError, match="not connected"):
+        await client.send_hello("session-1")

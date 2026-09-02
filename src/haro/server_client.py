@@ -46,15 +46,23 @@ class ServerClient:
             self._connection = None
 
     async def send_hello(self, session_id: str) -> None:
+        if self._connection is None:
+            raise RuntimeError("not connected")
         await self._connection.send(protocol.encode_hello(session_id))
 
     async def send_audio_frame(self, frame: bytes) -> None:
+        if self._connection is None:
+            raise RuntimeError("not connected")
         await self._connection.send(frame)
 
     async def send_end_of_speech(self) -> None:
+        if self._connection is None:
+            raise RuntimeError("not connected")
         await self._connection.send(protocol.encode_end_of_speech())
 
     async def receive_events(self) -> AsyncIterator[protocol.ServerEvent]:
+        if self._connection is None:
+            raise RuntimeError("not connected")
         while True:
             message = await self._connection.recv()
             if isinstance(message, bytes):
