@@ -44,4 +44,5 @@ class AudioOutput:
             stream = self._get_stream()
             stream.stop()
             stream.close()
+            self._stream = None
             self._started = False
