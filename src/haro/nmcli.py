@@ -25,7 +25,7 @@ class NetworkManagerClient:
 
     def is_connected(self) -> bool:
         output = self._runner(["-t", "-g", "STATE", "general", "status"])
-        return output.strip() == "connected"
+        return output.strip().startswith("connected")
 
     def scan_networks(self) -> list[str]:
         output = self._runner(

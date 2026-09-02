@@ -1,6 +1,7 @@
 import pytest
+from unittest.mock import patch, MagicMock
 
-from haro.nmcli import NetworkManagerClient, NmcliError
+from haro.nmcli import NetworkManagerClient, NmcliError, _default_runner
 
 
 class ScriptedRunner:
@@ -29,6 +30,13 @@ def test_is_connected_false_when_state_is_not_connected():
     client = NetworkManagerClient("wlan0", runner=runner)
 
     assert client.is_connected() is False
+
+
+def test_is_connected_true_when_state_is_connected_with_variant():
+    runner = ScriptedRunner(outputs={("-t", "-g", "STATE", "general", "status"): "connected (site)\n"})
+    client = NetworkManagerClient("wlan0", runner=runner)
+
+    assert client.is_connected() is True
 
 
 def test_scan_networks_dedupes_and_strips_blank_lines():
@@ -81,3 +89,14 @@ def test_stop_hotspot_calls_nmcli_connection_down():
     client.stop_hotspot()
 
     assert runner.calls == [["connection", "down", "haro-setup"]]
+
+
+def test_default_runner_raises_nmcli_error_on_nonzero_exit():
+    fake_result = MagicMock(returncode=1, stdout="", stderr="Error: nmcli failed\n")
+    with patch("haro.nmcli.subprocess.run", return_value=fake_result) as mock_run:
+        with pytest.raises(NmcliError, match="Error: nmcli failed"):
+            _default_runner(["device", "wifi", "list"])
+
+    mock_run.assert_called_once_with(
+        ["nmcli", "device", "wifi", "list"], capture_output=True, text=True, check=False,
+    )
