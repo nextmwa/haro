@@ -1,0 +1,15 @@
+[Unit]
+Description=Haro personal AI desk robot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/haro
+ExecStart=/home/pi/haro/.venv/bin/python -m haro.main /home/pi/haro/config.json
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
