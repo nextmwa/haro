@@ -81,7 +81,19 @@ def render_expression(expression: Expression, size: tuple[int, int] = (128, 64))
         draw.line((mouth_cx - mouth_half_width, mouth_y - 5, mouth_cx + mouth_half_width, mouth_y + 10), fill=1, width=2)
     elif expression == Expression.SETUP:
         draw.text((mouth_cx - 20, mouth_y - 5), "setup", fill=1)
+    elif expression == Expression.LISTENING:
+        # Small open ellipse mouth to suggest attentiveness
+        mouth_ellipse_radius = max(2, height // 16)
+        draw.ellipse(
+            (mouth_cx - mouth_ellipse_radius, mouth_y - mouth_ellipse_radius, mouth_cx + mouth_ellipse_radius, mouth_y + mouth_ellipse_radius),
+            outline=1, fill=0
+        )
+    elif expression == Expression.SPEAKING_NEUTRAL:
+        # Double horizontal line to represent neutral speech
+        draw.line((mouth_cx - mouth_half_width, mouth_y - 2, mouth_cx + mouth_half_width, mouth_y - 2), fill=1, width=2)
+        draw.line((mouth_cx - mouth_half_width, mouth_y + 2, mouth_cx + mouth_half_width, mouth_y + 2), fill=1, width=2)
     else:
+        # IDLE: single horizontal line
         draw.line((mouth_cx - mouth_half_width, mouth_y, mouth_cx + mouth_half_width, mouth_y), fill=1, width=2)
 
     return image

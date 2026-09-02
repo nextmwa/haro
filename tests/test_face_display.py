@@ -30,6 +30,21 @@ def test_render_expression_differs_between_expressions():
     assert happy.tobytes() != sad.tobytes()
 
 
+def test_all_expressions_render_distinctly():
+    """Verify that all Expression values produce visually distinct images."""
+    expressions = [e for e in Expression]
+    rendered = {expr: render_expression(expr, size=(128, 64)) for expr in expressions}
+
+    # Check that all pairwise combinations are distinct
+    for i, expr1 in enumerate(expressions):
+        for expr2 in expressions[i+1:]:
+            image1 = rendered[expr1]
+            image2 = rendered[expr2]
+            assert image1.tobytes() != image2.tobytes(), (
+                f"{expr1.name} and {expr2.name} render identically"
+            )
+
+
 class FakeDevice:
     def __init__(self, width: int = 128, height: int = 64) -> None:
         self.width = width
