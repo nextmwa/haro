@@ -79,11 +79,64 @@ async def test_ensure_connected_runs_setup_flow_when_not_connected():
 
     await provisioning.ensure_connected()
 
-    assert face_display.shown == [Expression.SETUP]
+    assert face_display.shown == [Expression.SETUP, Expression.IDLE]
     assert nm_client.scan_calls == 1
     assert nm_client.start_hotspot_calls == [("Haro-Setup", "haro1234")]
     assert nm_client.connect_calls == [("HomeWifi", "secret")]
     assert nm_client.stop_hotspot_calls == 1
+
+
+class RaisingConnectNmClient(FakeNmClient):
+    """Like FakeNmClient, but connect() raises for any password other than the
+    valid one — simulating a real nmcli auth failure (e.g. wrong WiFi password)."""
+
+    def __init__(self, connected_sequence: list[bool], valid_password: str) -> None:
+        super().__init__(connected_sequence)
+        self._valid_password = valid_password
+
+    def connect(self, ssid: str, password: str) -> None:
+        super().connect(ssid, password)
+        if password != self._valid_password:
+            raise RuntimeError("Secrets were wrong")
+
+
+class TwoAttemptServerRunner:
+    """Simulates a client submitting a wrong password first (expecting a 400 and
+    the hotspot to stay up), then the correct password."""
+
+    def __init__(self, ssid: str, bad_password: str, good_password: str) -> None:
+        self._ssid = ssid
+        self._bad_password = bad_password
+        self._good_password = good_password
+
+    async def serve_until(self, app, port, stop_event):
+        async with TestClient(TestServer(app)) as client:
+            first_response = await client.post(
+                "/connect", data={"ssid": self._ssid, "password": self._bad_password}
+            )
+            assert first_response.status == 400
+            assert not stop_event.is_set()
+            await client.post(
+                "/connect", data={"ssid": self._ssid, "password": self._good_password}
+            )
+        await stop_event.wait()
+
+
+async def test_ensure_connected_recovers_from_wrong_password_then_succeeds():
+    nm_client = RaisingConnectNmClient(connected_sequence=[False, True], valid_password="secret")
+    face_display = FakeFaceDisplay()
+    provisioning = WifiProvisioning(
+        nm_client, face_display, "Haro-Setup", "haro1234",
+        server_runner=TwoAttemptServerRunner(
+            ssid="HomeWifi", bad_password="wrong", good_password="secret"
+        ),
+    )
+
+    await provisioning.ensure_connected()
+
+    assert nm_client.connect_calls == [("HomeWifi", "wrong"), ("HomeWifi", "secret")]
+    assert nm_client.stop_hotspot_calls == 1
+    assert face_display.shown == [Expression.SETUP, Expression.IDLE]
 
 
 async def test_monitor_calls_ensure_connected_after_threshold_failures():

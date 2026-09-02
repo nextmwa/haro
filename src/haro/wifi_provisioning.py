@@ -64,38 +64,43 @@ class WifiProvisioning:
         self._unhealthy_threshold = unhealthy_threshold
 
     async def ensure_connected(self) -> None:
-        if self._nm_client.is_connected():
+        if await asyncio.to_thread(self._nm_client.is_connected):
             return
 
         logger.info("no known WiFi connection, entering setup mode")
         self._face_display.show(Expression.SETUP)
-        networks = self._nm_client.scan_networks()
-        self._nm_client.start_hotspot(self._hotspot_ssid, self._hotspot_password)
+        networks = await asyncio.to_thread(self._nm_client.scan_networks)
+        await asyncio.to_thread(
+            self._nm_client.start_hotspot, self._hotspot_ssid, self._hotspot_password
+        )
 
         stop_event = asyncio.Event()
 
         async def on_submit(ssid: str, password: str) -> bool:
             try:
-                self._nm_client.connect(ssid, password)
+                await asyncio.to_thread(self._nm_client.connect, ssid, password)
             except Exception as exc:
                 logger.warning("failed to connect to %s: %s", ssid, exc)
                 return False
-            if self._nm_client.is_connected():
+            if await asyncio.to_thread(self._nm_client.is_connected):
                 stop_event.set()
                 return True
             return False
 
         app = create_setup_app(networks, on_submit)
-        await self._server_runner.serve_until(app, self._setup_server_port, stop_event)
+        try:
+            await self._server_runner.serve_until(app, self._setup_server_port, stop_event)
+        finally:
+            await asyncio.to_thread(self._nm_client.stop_hotspot)
 
-        self._nm_client.stop_hotspot()
         logger.info("WiFi setup complete, resuming normal operation")
+        self._face_display.show(Expression.IDLE)
 
     async def monitor(self) -> None:
         consecutive_failures = 0
         while True:
             await asyncio.sleep(self._check_interval_s)
-            if self._nm_client.is_connected():
+            if await asyncio.to_thread(self._nm_client.is_connected):
                 consecutive_failures = 0
                 continue
             consecutive_failures += 1
@@ -104,4 +109,7 @@ class WifiProvisioning:
             )
             if consecutive_failures >= self._unhealthy_threshold:
                 consecutive_failures = 0
-                await self.ensure_connected()
+                try:
+                    await self.ensure_connected()
+                except Exception as exc:
+                    logger.warning("ensure_connected failed during monitor re-entry: %s", exc)
