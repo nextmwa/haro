@@ -1,7 +1,12 @@
 import asyncio
+import logging
 from typing import AsyncIterator, Protocol
 
+from websockets.exceptions import WebSocketException
+
 from . import protocol
+
+logger = logging.getLogger(__name__)
 
 
 class WebSocketLike(Protocol):
@@ -32,16 +37,28 @@ class ServerClient:
         sleep=asyncio.sleep,
     ) -> None:
         backoff = initial_backoff
+        attempt = 0
         while True:
+            attempt += 1
             try:
                 await self.connect()
-                return
-            except OSError:
+            except (OSError, WebSocketException) as exc:
+                logger.warning(
+                    "connection attempt %d to %s failed (%s); retrying in %.1fs",
+                    attempt,
+                    self._url,
+                    exc,
+                    backoff,
+                )
                 await sleep(backoff)
                 backoff = min(backoff * 2, max_backoff)
+            else:
+                logger.info("connected to %s (attempt %d)", self._url, attempt)
+                return
 
     async def close(self) -> None:
         if self._connection is not None:
+            logger.info("closing connection to %s", self._url)
             await self._connection.close()
             self._connection = None
 

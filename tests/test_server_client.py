@@ -1,6 +1,7 @@
 import json
 
 import pytest
+import websockets.exceptions
 
 from haro import protocol
 from haro.server_client import ServerClient
@@ -22,13 +23,14 @@ class FakeConnection:
         self.closed = True
 
 
-def make_connector(connection: FakeConnection, fail_times: int = 0):
+def make_connector(connection: FakeConnection, fail_times: int = 0, error=None):
     attempts = {"count": 0}
+    failure = error if error is not None else OSError("connection refused")
 
     async def connector(url: str):
         attempts["count"] += 1
         if attempts["count"] <= fail_times:
-            raise OSError("connection refused")
+            raise failure
         return connection
 
     connector.attempts = attempts
@@ -103,6 +105,26 @@ async def test_connect_with_retry_retries_with_backoff_then_succeeds():
 
     assert connector.attempts["count"] == 3
     assert sleep_calls == [1.0, 2.0]
+
+
+async def test_connect_with_retry_also_retries_websocket_handshake_errors():
+    """A server that is up but rejects the handshake raises a WebSocketException,
+    not an OSError: that must be retried, not crash the process."""
+    connection = FakeConnection(recv_queue=[])
+    connector = make_connector(
+        connection, fail_times=1, error=websockets.exceptions.InvalidHandshake("bad handshake")
+    )
+    client = ServerClient("ws://example", connector=connector)
+
+    sleep_calls = []
+
+    async def fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+
+    await client.connect_with_retry(initial_backoff=1.0, sleep=fake_sleep)
+
+    assert connector.attempts["count"] == 2
+    assert sleep_calls == [1.0]
 
 
 async def test_close_closes_the_connection():
