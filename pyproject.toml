@@ -12,6 +12,11 @@ dependencies = [
     "luma.oled>=3.13.0",
     "Pillow>=10.0.0",
     "aiohttp>=3.9.0",
+    # webrtcvad (unmaintained) does `import pkg_resources` at import time.
+    # setuptools removed pkg_resources entirely in 82.0.0 (deprecated since
+    # 67.5.0), so an unpinned setuptools install breaks this at runtime with
+    # "ModuleNotFoundError: No module named 'pkg_resources'". Pin below that.
+    "setuptools<82",
 ]
 
 [project.optional-dependencies]

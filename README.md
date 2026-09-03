@@ -90,6 +90,15 @@ Se preferisci senza `uv` e la tua Pi ha già Python 3.11 come predefinito,
 il classico `python3 -m venv .venv && .venv/bin/pip install -e .` funziona
 allo stesso modo.
 
+**Nota:** `webrtcvad` (dipendenza non più mantenuta) importa `pkg_resources`
+a runtime, che `setuptools` ha rimosso del tutto a partire dalla versione
+82.0.0. `pyproject.toml` pinna `setuptools<82` apposta, quindi un
+`pip install -e .` fatto dopo questa modifica lo risolve da solo. Se il
+servizio va in crash con `ModuleNotFoundError: No module named
+'pkg_resources'`, la tua installazione è precedente a questo fix — rilancia
+`uv pip install --python .venv/bin/python -e .` (o il `pip install -e .`
+del venv classico) per aggiornare le dipendenze.
+
 ## 5. File di configurazione
 
 Crea `~/haro/config.json` con almeno l'indirizzo del server AI (vedi
