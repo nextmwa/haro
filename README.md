@@ -99,6 +99,13 @@ servizio va in crash con `ModuleNotFoundError: No module named
 `uv pip install --python .venv/bin/python -e .` (o il `pip install -e .`
 del venv classico) per aggiornare le dipendenze.
 
+Stesso discorso per `tflite-runtime` (dipendenza di `openwakeword`, ferma
+alla 2.14.0 di ottobre 2023): è compilato contro NumPy 1.x, quindi con
+NumPy 2.x installato va in crash all'avvio con `AttributeError: _ARRAY_API
+not found` / `numpy.core.multiarray failed to import`. `pyproject.toml`
+pinna `numpy<2`; se lo vedi su un'installazione già fatta, rilancia
+l'installazione delle dipendenze come sopra.
+
 ## 5. File di configurazione
 
 Crea `~/haro/config.json` con almeno l'indirizzo del server AI (vedi
