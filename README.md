@@ -194,21 +194,16 @@ sono pensati per un solo verso alla volta, e se ne configuri più di uno in
 ha un'unica periferica I2S hardware (nessun secondo bus reale su altri
 GPIO su cui spostare uno dei due dispositivi), ma quella periferica ha FIFO
 TX/RX separate: può fare cattura e riproduzione insieme, serve solo un
-overlay che lo dichiari. Approccio consigliato per non perdere tempo a
-debuggare i due problemi insieme:
+overlay che lo dichiari — è quello che fa
+[`overlays/haro-duplex-overlay.dts`](overlays/haro-duplex-overlay.dts)
+(istruzioni in [`overlays/README.md`](overlays/README.md)).
 
-1. Configura e testa **solo** il microfono (il suo overlay dedicato) e
-   verifica la cattura con `arecord -l` / una registrazione di prova.
-2. Configura e testa **solo** l'amplificatore (`dtoverlay=max98357a`) e
-   verifica la riproduzione con `aplay -l` / un file di prova.
-3. Solo dopo aver confermato che funzionano separatamente, prova l'overlay
-   combinato in [`overlays/haro-duplex-overlay.dts`](overlays/haro-duplex-overlay.dts)
-   (istruzioni di compilazione/installazione/test in
-   [`overlays/README.md`](overlays/README.md)) — **non ancora verificato su
-   hardware reale**, primo tentativo da collaudare. Se non funziona a
-   dovere, il fallback pronto all'uso è `dtoverlay=googlevoicehat-soundcard`,
-   già incluso in Raspberry Pi OS per un mic I2S + ampli MAX98357A-like
-   sugli stessi pin.
+**Verificato su hardware reale il 2026-09-08**: cattura e riproduzione
+girano contemporaneamente senza errori ALSA, con `haro.service` che apre il
+microfono per la wake word senza problemi. Non ancora verificato ad
+orecchio l'audio in uscita dalla cassa — vedi `overlays/README.md` per i
+dettagli e il fallback (`dtoverlay=googlevoicehat-soundcard`) se qualcosa
+smette di funzionare in futuro.
 
 ## 9. Verifica finale
 

@@ -144,4 +144,5 @@ MAX98357A (+/−) ──────► Cassa 8Ω 2W
   software separato, da fare prima di testare microfono e amplificatore
   insieme — vedi [`overlays/haro-duplex-overlay.dts`](../overlays/haro-duplex-overlay.dts)
   e [`overlays/README.md`](../overlays/README.md) per compilazione,
-  installazione e verifica (non ancora testato su hardware reale).
+  installazione e verifica (testato su hardware reale il 2026-09-08:
+  cattura+riproduzione simultanee confermate via ALSA).
