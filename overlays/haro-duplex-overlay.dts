@@ -54,6 +54,8 @@
 			haro_sound: haro-duplex-sound {
 				compatible = "simple-audio-card";
 				simple-audio-card,name = "haroduplex";
+				#address-cells = <1>;
+				#size-cells = <0>;
 
 				simple-audio-card,dai-link@0 {
 					reg = <0>;
