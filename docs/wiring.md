@@ -141,5 +141,7 @@ MAX98357A (+/−) ──────► Cassa 8Ω 2W
   display risponda: `i2cdetect -y 1` deve mostrare il dispositivo
   all'indirizzo `3c`.
 - La configurazione del bus I2S full-duplex (device tree overlay) è un passo
-  software separato, da fare prima di testare microfono e amplificatore —
-  vedi la nota nella spec del progetto.
+  software separato, da fare prima di testare microfono e amplificatore
+  insieme — vedi [`overlays/haro-duplex-overlay.dts`](../overlays/haro-duplex-overlay.dts)
+  e [`overlays/README.md`](../overlays/README.md) per compilazione,
+  installazione e verifica (non ancora testato su hardware reale).

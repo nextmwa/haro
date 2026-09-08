@@ -190,17 +190,25 @@ A differenza di I2C, qui **non c'è un dtoverlay standard unico** che
 supporti cattura e riproduzione I2S simultanee su Raspberry Pi: gli overlay
 comuni (es. `dtoverlay=max98357a`, overlay da soundcard per il microfono)
 sono pensati per un solo verso alla volta, e se ne configuri più di uno in
-`/boot/firmware/config.txt` di norma vince solo l'ultimo caricato. Serve un
-overlay combinato/custom per il full-duplex — non ancora verificato su
-hardware reale in questo progetto. Approccio consigliato per non perdere
-tempo a debuggare i due problemi insieme:
+`/boot/firmware/config.txt` di norma vince solo l'ultimo caricato. Il Pi
+ha un'unica periferica I2S hardware (nessun secondo bus reale su altri
+GPIO su cui spostare uno dei due dispositivi), ma quella periferica ha FIFO
+TX/RX separate: può fare cattura e riproduzione insieme, serve solo un
+overlay che lo dichiari. Approccio consigliato per non perdere tempo a
+debuggare i due problemi insieme:
 
 1. Configura e testa **solo** il microfono (il suo overlay dedicato) e
    verifica la cattura con `arecord -l` / una registrazione di prova.
 2. Configura e testa **solo** l'amplificatore (`dtoverlay=max98357a`) e
    verifica la riproduzione con `aplay -l` / un file di prova.
-3. Solo dopo aver confermato che funzionano separatamente, cerca o scrivi un
-   overlay combinato che dichiari entrambe le direzioni sullo stesso bus.
+3. Solo dopo aver confermato che funzionano separatamente, prova l'overlay
+   combinato in [`overlays/haro-duplex-overlay.dts`](overlays/haro-duplex-overlay.dts)
+   (istruzioni di compilazione/installazione/test in
+   [`overlays/README.md`](overlays/README.md)) — **non ancora verificato su
+   hardware reale**, primo tentativo da collaudare. Se non funziona a
+   dovere, il fallback pronto all'uso è `dtoverlay=googlevoicehat-soundcard`,
+   già incluso in Raspberry Pi OS per un mic I2S + ampli MAX98357A-like
+   sugli stessi pin.
 
 ## 9. Verifica finale
 

@@ -1,0 +1,88 @@
+/*
+ * haro-duplex — simultaneous I2S capture (INMP441) + playback (MAX98357A)
+ * on a shared BCLK/LRCLK bus (GPIO18/19), per docs/wiring.md.
+ *
+ * The Pi's I2S peripheral has separate TX/RX FIFOs, so it can run one
+ * playback and one capture stream at once on the same clock; the two
+ * chips just need to show up as two independent dai-links under one
+ * simple-audio-card node instead of the single-direction machine
+ * drivers used by dtoverlay=max98357a / a plain mic-only overlay.
+ *
+ * "invensense,ics43432" (mainline CONFIG_SND_SOC_ICS43432) is a
+ * control-bus-free I2S MEMS mic codec driver; INMP441 has no register
+ * interface either and follows the same I2S timing, so it's the
+ * standard stand-in for it (same trick used for SPH0645/ICS43434).
+ * "ti,pcm5102a" is the equally control-bus-free stub used upstream by
+ * dtoverlay=hifiberry-dac for MAX98357A-class DACs/amps with no I2C.
+ *
+ * NOT YET VERIFIED ON REAL HARDWARE — see docs/wiring.md before relying
+ * on this. Build and test per the instructions there.
+ */
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&i2s_clk_producer>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			haro_mic_codec: haro-mic-codec {
+				#sound-dai-cells = <0>;
+				compatible = "invensense,ics43432";
+				status = "okay";
+			};
+
+			haro_amp_codec: haro-amp-codec {
+				#sound-dai-cells = <0>;
+				compatible = "ti,pcm5102a";
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@2 {
+		target-path = "/";
+		__overlay__ {
+			haro_sound: haro-duplex-sound {
+				compatible = "simple-audio-card";
+				simple-audio-card,name = "haroduplex";
+
+				simple-audio-card,dai-link@0 {
+					reg = <0>;
+					format = "i2s";
+					bitclock-master = <&haro_capture_cpu>;
+					frame-master = <&haro_capture_cpu>;
+
+					haro_capture_cpu: cpu {
+						sound-dai = <&i2s_clk_producer>;
+					};
+					codec {
+						sound-dai = <&haro_mic_codec>;
+					};
+				};
+
+				simple-audio-card,dai-link@1 {
+					reg = <1>;
+					format = "i2s";
+					bitclock-master = <&haro_playback_cpu>;
+					frame-master = <&haro_playback_cpu>;
+
+					haro_playback_cpu: cpu {
+						sound-dai = <&i2s_clk_producer>;
+					};
+					codec {
+						sound-dai = <&haro_amp_codec>;
+					};
+				};
+			};
+		};
+	};
+};
