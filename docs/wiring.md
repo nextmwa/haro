@@ -60,7 +60,7 @@ Solo i pin usati in questo schema:
 | BCLK | Pi pin 12 (GPIO18) | Condiviso con INMP441 |
 | LRC | Pi pin 35 (GPIO19) | Condiviso con INMP441 |
 | DIN | Pi pin 40 (GPIO21) | Dati Pi → amplificatore |
-| SD | GND | Seleziona canale mono/sinistro (verificare datasheet della propria scheda — su molte breakout GND = solo canale sinistro, floating = L+R mixati) |
+| SD | Non collegato (floating) | **Verificato su hardware reale**: su questa breakout, SD a GND mette il chip in shutdown (silenzio totale, nessun errore ALSA) — floating lo abilita. Il comportamento "GND = solo canale sinistro" citato in alcuni datasheet/tutorial **non vale per questa scheda**. Se cambi modulo, riverifica con un tono di prova prima di fidarti della doc del produttore. |
 | GAIN | Non collegato | Guadagno di default (~9dB) |
 | + / − (uscita altoparlante) | Cassa 8Ω 2W | Rispettare la polarità indicata sul modulo |
 
@@ -108,7 +108,7 @@ Rail (+) 3.3V  ──┬──► INMP441 VDD
 Rail (+) 5V    ──────► MAX98357A VIN
 
 Rail (−) GND   ──┬──► INMP441 GND, L/R
-                  ├──► MAX98357A GND, SD
+                  ├──► MAX98357A GND (SD non collegato, floating)
                   └──► SSD1306 GND
 
 MAX98357A (+/−) ──────► Cassa 8Ω 2W

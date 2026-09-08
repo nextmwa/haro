@@ -1,5 +1,31 @@
+<p align="center">
+  <img src="docs/assets/haro-banner.svg" alt="Haro — Personal AI Desk Robot" width="100%">
+</p>
+
+<p align="center">
+  <em>"Haro, genki?"</em> — un piccolo compagno da scrivania ispirato al robot-mascotte
+  dell'universo <strong>Gundam</strong>.
+</p>
+
 # haro
 Personal ai desk robot
+
+## Perché si chiama Haro?
+
+Nell'universo *Mobile Suit Gundam*, **Haro** è il robottino a forma di palla —
+gusci colorati a spicchi, due occhi/lenti sporgenti e un'antenna a bottone
+in cima — costruito da **Amuro Ray** nella serie originale del 1979 (siamo
+nell'anno *Universal Century* 0079). Da allora è tornato in decine di serie
+e continuity diverse della saga, da Char Aznable a Suletta Mercury, sempre
+nello stesso ruolo: piccolo assistente autonomo che saltella, chiacchiera
+("Haro genki desu!") e non si allontana mai troppo dal suo pilota.
+
+Questo progetto prende in prestito lo spirito — non le dimensioni: niente
+salti, ma un piccolo assistente vocale da scrivania basato su Raspberry Pi,
+con la sua faccina su un display OLED al posto delle due lenti rosse.
+Per il resto la missione è la stessa: stare vicino a chi lo usa e dare una
+mano. Nessun collegamento ufficiale con Sunrise/Bandai Namco — è un omaggio
+di un fan, non merchandising.
 
 Guida completa per portare Haro da SD card vuota a robot funzionante. Per lo
 schema elettrico vedi [`docs/wiring.md`](docs/wiring.md); per l'architettura
@@ -199,3 +225,10 @@ The hotspot ships with the default password `haro1234`
 (`Config.hotspot_password`). Change it in `config.json` for anything beyond
 initial testing: the setup page has no authentication of its own, so anyone who
 can join the hotspot can reach it.
+
+---
+
+<p align="center">
+  <sub>Haro appare per la prima volta in <em>Mobile Suit Gundam</em> (1979).<br>
+  Questo repository non è affiliato con Sunrise, Bandai Namco o Sotsu — solo un piccolo tributo da un fan.</sub>
+</p>
